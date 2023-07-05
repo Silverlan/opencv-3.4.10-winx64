@@ -1,0 +1,57 @@
+name: Build Linux
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  repository_dispatch:
+    types: [init]
+
+concurrency:
+  group: environment-lin-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build - ${{ matrix.config.os }}
+    if: github.repository != 'Silverlan/pr_module_template'
+    runs-on: ${{ matrix.config.os }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - os: ubuntu-22.04
+            name: "Ubuntu GCC-11"
+            artifact: "ubuntu_gcc.7z"
+            build_type: "RelWithDebInfo"
+            cc: "clang-14"
+            cxx: "clang++-14"
+            archiver: "7z a"
+            generators: "Unix Makefiles"
+            build_dir: 'build'
+    steps:
+      - name: Download OpenCV binaries
+        shell: bash
+        run: |
+          curl -o opencv-3.4.10-winx64.zip https://pragma-engine.com/share/opencv-3.4.10-winx64.zip
+
+      - name: Update Tag
+        uses: rickstaa/action-create-tag@v1.3.9
+        continue-on-error: true
+        if: runner.os == 'Linux' && ${{ inputs.update_tag == '1' }}
+        with:
+          tag: "v3.4.10"
+          force_push_tag: true
+
+      - name: Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "opencv-3.4.10-winx64.zip"
+          body: "Prebuilt OpenCV binaries."
+          commit: ${{ inputs.commit }}
+          tag: v3.4.10
+          replacesArtifacts: true
+          allowUpdates: true
+
